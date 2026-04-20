@@ -13,6 +13,43 @@ $objDir = Join-Path $buildDir 'obj'
 New-Item -ItemType Directory -Force -Path $buildDir | Out-Null
 New-Item -ItemType Directory -Force -Path $objDir | Out-Null
 
+function Resolve-ToolPath {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string[]]$Names,
+        [Parameter(Mandatory = $true)]
+        [string[]]$FallbackPaths
+    )
+
+    foreach ($name in $Names) {
+        $cmd = Get-Command $name -ErrorAction SilentlyContinue
+        if ($cmd) {
+            return $cmd.Source
+        }
+    }
+
+    foreach ($path in $FallbackPaths) {
+        if ($path -and (Test-Path $path)) {
+            return $path
+        }
+    }
+
+    throw "Unable to locate any of: $($Names -join ', ')"
+}
+
+$llvmProgramFiles = if ($env:ProgramFiles) { $env:ProgramFiles } else { 'C:\Program Files' }
+$llvmBinDir = Join-Path $llvmProgramFiles 'LLVM\bin'
+$assembler = Resolve-ToolPath `
+    -Names @('llvm-ml64', 'llvm-ml64.exe') `
+    -FallbackPaths @(
+        (Join-Path $llvmBinDir 'llvm-ml64.exe')
+    )
+$linker = Resolve-ToolPath `
+    -Names @('lld-link', 'lld-link.exe') `
+    -FallbackPaths @(
+        (Join-Path $llvmBinDir 'lld-link.exe')
+    )
+
 $sdkRoot = 'C:\Program Files (x86)\Windows Kits\10\Lib'
 $umLib = Get-ChildItem $sdkRoot -Directory |
     Sort-Object Name -Descending |
@@ -42,7 +79,7 @@ $objects = @{}
 foreach ($name in $sources) {
     $srcPath = Join-Path $srcDir $name
     $objPath = Join-Path $objDir ($name -replace '\.asm$', '.obj')
-    & llvm-ml64 /nologo /c /I $srcDir "/Fo$objPath" $srcPath
+    & $assembler /nologo /c /I $srcDir "/Fo$objPath" $srcPath
     $objects[$name] = $objPath
 }
 
@@ -59,7 +96,7 @@ $common = @(
 
 if ($Target -in @('game', 'all')) {
     $gameOut = Join-Path $buildDir 'roguelike.exe'
-    & lld-link /nologo `
+    & $linker /nologo `
         /subsystem:windows `
         /entry:mainCRTStartup `
         /base:0x400000 `
@@ -73,7 +110,7 @@ if ($Target -in @('game', 'all')) {
 
 if ($Target -in @('tests', 'all')) {
     $testsOut = Join-Path $buildDir 'roguelike_tests.exe'
-    & lld-link /nologo `
+    & $linker /nologo `
         /subsystem:console `
         /entry:tests_mainCRTStartup `
         /base:0x400000 `
