@@ -2,6 +2,7 @@ include game.inc
 
 EXTERN rt_window:QWORD
 EXTERN rt_font:QWORD
+EXTERN rt_screen:DWORD
 EXTERN rt_backbuffer:DWORD
 EXTERN rt_bmi:BYTE
 EXTERN gs_paused:DWORD
@@ -23,6 +24,8 @@ EXTERN gs_entity_x:BYTE
 EXTERN gs_entity_y:BYTE
 EXTERN gs_entity_hp:DWORD
 EXTERN gs_entity_max_hp:DWORD
+EXTERN gs_entity_status_type:BYTE
+EXTERN gs_entity_status_ticks:DWORD
 EXTERN gs_item_active:BYTE
 EXTERN gs_item_kind:BYTE
 EXTERN gs_item_x:BYTE
@@ -45,6 +48,7 @@ EXTERN str_label_dead:BYTE
 EXTERN str_label_seed:BYTE
 EXTERN str_label_tick:BYTE
 EXTERN str_label_hp:BYTE
+EXTERN str_label_status:BYTE
 EXTERN str_label_enemies:BYTE
 EXTERN str_label_queue:BYTE
 EXTERN str_label_inventory:BYTE
@@ -54,6 +58,22 @@ EXTERN str_controls2:BYTE
 EXTERN str_controls3:BYTE
 EXTERN str_queue_empty:BYTE
 EXTERN str_inventory_empty:BYTE
+EXTERN str_status_none:BYTE
+EXTERN str_status_regen:BYTE
+EXTERN str_title0:BYTE
+EXTERN str_title1:BYTE
+EXTERN str_title2:BYTE
+EXTERN str_title3:BYTE
+EXTERN str_title4:BYTE
+EXTERN str_title5:BYTE
+EXTERN str_help0:BYTE
+EXTERN str_help1:BYTE
+EXTERN str_help2:BYTE
+EXTERN str_help3:BYTE
+EXTERN str_help4:BYTE
+EXTERN str_help5:BYTE
+EXTERN str_help6:BYTE
+EXTERN str_help7:BYTE
 EXTERN util_memset:PROC
 EXTERN util_strlen:PROC
 EXTERN util_copy_cstr:PROC
@@ -72,18 +92,22 @@ EXTERN TextOutA:PROC
 PUBLIC render_frame
 PUBLIC render_present
 
-COLOR_BG            equ 000A0F14h
-COLOR_PANEL         equ 00111822h
-COLOR_BORDER        equ 00304860h
-COLOR_FLOOR_VIS     equ 002B3642h
-COLOR_FLOOR_FOG     equ 0018222Ah
-COLOR_WALL_VIS      equ 00505D70h
-COLOR_WALL_FOG      equ 0027303Bh
-COLOR_UNSEEN        equ 0006080Bh
-COLOR_PLAYER        equ 0046D46Ch
-COLOR_ENEMY         equ 00D14F4Fh
-COLOR_ITEM          equ 00D6B24Bh
-COLOR_TEXT          equ 00E8E8D8h
+COLOR_BG             equ 000A0F14h
+COLOR_PANEL          equ 00111822h
+COLOR_BORDER         equ 00304860h
+COLOR_FLOOR_VIS      equ 002B3642h
+COLOR_FLOOR_FOG      equ 0018222Ah
+COLOR_WALL_VIS       equ 00505D70h
+COLOR_WALL_FOG       equ 0027303Bh
+COLOR_UNSEEN         equ 0006080Bh
+COLOR_PLAYER         equ 0046D46Ch
+COLOR_ENEMY          equ 00D14F4Fh
+COLOR_ENEMY_BRUTE    equ 00A65DDBh
+COLOR_ITEM           equ 00D6B24Bh
+COLOR_ITEM_TONIC     equ 00D98AC1h
+COLOR_MENU_PANEL     equ 00131C29h
+COLOR_MENU_ACCENT    equ 0045708Fh
+COLOR_TEXT           equ 00E8E8D8h
 
 .code
 
@@ -121,6 +145,58 @@ render_clear PROC
     call render_fill_rect_color
     ret
 render_clear ENDP
+
+render_draw_menu_background PROC
+    mov ecx, 80
+    mov edx, 72
+    mov r8d, 1120
+    mov r9d, 576
+    mov eax, COLOR_MENU_PANEL
+    call render_fill_rect_color
+
+    mov ecx, 80
+    mov edx, 72
+    mov r8d, 1120
+    mov r9d, 4
+    mov eax, COLOR_BORDER
+    call render_fill_rect_color
+
+    mov ecx, 80
+    mov edx, 644
+    mov r8d, 1120
+    mov r9d, 4
+    mov eax, COLOR_BORDER
+    call render_fill_rect_color
+
+    mov ecx, 80
+    mov edx, 72
+    mov r8d, 4
+    mov r9d, 576
+    mov eax, COLOR_BORDER
+    call render_fill_rect_color
+
+    mov ecx, 1196
+    mov edx, 72
+    mov r8d, 4
+    mov r9d, 576
+    mov eax, COLOR_BORDER
+    call render_fill_rect_color
+
+    mov ecx, 112
+    mov edx, 110
+    mov r8d, 24
+    mov r9d, 460
+    mov eax, COLOR_MENU_ACCENT
+    call render_fill_rect_color
+
+    mov ecx, 160
+    mov edx, 110
+    mov r8d, 320
+    mov r9d, 24
+    mov eax, COLOR_MENU_ACCENT
+    call render_fill_rect_color
+    ret
+render_draw_menu_background ENDP
 
 render_draw_world PROC
     xor r10d, r10d
@@ -193,6 +269,12 @@ render_item_loop:
     add edx, 6
     mov r8d, 4
     mov r9d, 4
+    cmp byte ptr [gs_item_kind + r10], ITEM_TONIC
+    jne render_item_potion
+    mov eax, COLOR_ITEM_TONIC
+    call render_fill_rect_color
+    jmp render_item_next
+render_item_potion:
     mov eax, COLOR_ITEM
     call render_fill_rect_color
 render_item_next:
@@ -231,6 +313,12 @@ render_entity_draw:
     call render_fill_rect_color
     jmp render_entity_next
 render_entity_enemy:
+    cmp byte ptr [gs_entity_kind + r10], ENTITY_BRUTE
+    jne render_entity_slime
+    mov eax, COLOR_ENEMY_BRUTE
+    call render_fill_rect_color
+    jmp render_entity_next
+render_entity_slime:
     mov eax, COLOR_ENEMY
     call render_fill_rect_color
 render_entity_next:
@@ -329,12 +417,12 @@ render_queue_not_wait:
 render_queue_not_pickup:
     cmp edx, CMD_USE
     jne render_queue_not_use
-    mov dl, 'U'
+    mov dl, 'I'
     jmp render_queue_emit
 render_queue_not_use:
     cmp edx, CMD_DROP
     jne render_queue_not_drop
-    mov dl, 'D'
+    mov dl, 'X'
     jmp render_queue_emit
 render_queue_not_drop:
     mov dl, 'F'
@@ -371,13 +459,18 @@ render_build_inventory PROC FRAME
 render_inventory_loop:
     cmp r10d, MAX_INV
     jge render_inventory_finish
-    cmp byte ptr [gs_inventory_kind + r10], ITEM_POTION
-    jne render_inventory_next
     cmp byte ptr [gs_inventory_count + r10], 0
     je render_inventory_next
     mov rcx, r11
+    cmp byte ptr [gs_inventory_kind + r10], ITEM_TONIC
+    jne render_inventory_potion
+    mov dl, 'T'
+    call util_append_char
+    jmp render_inventory_count
+render_inventory_potion:
     mov dl, 'P'
     call util_append_char
+render_inventory_count:
     mov r11, rax
     movzx edx, byte ptr [gs_inventory_count + r10]
     cmp edx, 1
@@ -453,6 +546,27 @@ render_status_copy:
     call util_append_uint
 
     lea rcx, hud_line4
+    lea rdx, str_label_status
+    call util_copy_cstr
+    mov r11, rax
+    cmp byte ptr [gs_entity_status_type + PLAYER_ENTITY_INDEX], STATUS_REGEN
+    jne render_status_line_none
+    cmp dword ptr [gs_entity_status_ticks + PLAYER_ENTITY_INDEX * 4], 0
+    jle render_status_line_none
+    mov rcx, r11
+    lea rdx, str_status_regen
+    call util_append_cstr
+    mov rcx, rax
+    mov edx, dword ptr [gs_entity_status_ticks + PLAYER_ENTITY_INDEX * 4]
+    call util_append_uint
+    jmp render_status_line_done
+render_status_line_none:
+    mov rcx, r11
+    lea rdx, str_status_none
+    call util_append_cstr
+render_status_line_done:
+
+    lea rcx, hud_line5
     lea rdx, str_label_enemies
     call util_copy_cstr
     mov r11, rax
@@ -462,24 +576,24 @@ render_status_copy:
     call util_append_uint
 
     call render_build_queue
-    lea rcx, hud_line5
+    lea rcx, hud_line6
     lea rdx, render_queue_text
     call util_copy_cstr
 
     call render_build_inventory
-    lea rcx, hud_line6
+    lea rcx, hud_line7
     lea rdx, render_inventory_text
     call util_copy_cstr
 
-    lea rcx, hud_line7
-    lea rdx, gs_message_log
-    call util_copy_cstr
     lea rcx, hud_line8
-    lea rdx, [gs_message_log + MESSAGE_CHARS]
-    call util_copy_cstr
+    xor edx, edx
+    mov r8d, 96
+    call util_memset
     lea rcx, hud_line9
-    lea rdx, [gs_message_log + (MESSAGE_CHARS * 2)]
-    call util_copy_cstr
+    xor edx, edx
+    mov r8d, 96
+    call util_memset
+
     add rsp, 40
     ret
 render_build_hud ENDP
@@ -544,6 +658,9 @@ render_present PROC FRAME
     mov qword ptr [rsp + 96], SRCCOPY
     call StretchDIBits
 
+    cmp dword ptr [rt_screen], SCREEN_GAME
+    jne render_present_menu
+
     mov rcx, qword ptr [rsp + 160]
     mov edx, HUD_X + 12
     mov r8d, 12
@@ -576,7 +693,7 @@ render_present PROC FRAME
 
     mov rcx, qword ptr [rsp + 160]
     mov edx, HUD_X + 12
-    mov r8d, 132
+    mov r8d, 120
     lea r9, hud_line5
     call render_draw_text_line
 
@@ -588,20 +705,32 @@ render_present PROC FRAME
 
     mov rcx, qword ptr [rsp + 160]
     mov edx, HUD_X + 12
-    mov r8d, 188
+    mov r8d, 172
     lea r9, hud_line7
     call render_draw_text_line
 
     mov rcx, qword ptr [rsp + 160]
     mov edx, HUD_X + 12
-    mov r8d, 208
-    lea r9, hud_line8
+    mov r8d, 220
+    lea r9, gs_message_log
     call render_draw_text_line
 
     mov rcx, qword ptr [rsp + 160]
     mov edx, HUD_X + 12
-    mov r8d, 228
-    lea r9, hud_line9
+    mov r8d, 240
+    lea r9, [gs_message_log + MESSAGE_CHARS]
+    call render_draw_text_line
+
+    mov rcx, qword ptr [rsp + 160]
+    mov edx, HUD_X + 12
+    mov r8d, 260
+    lea r9, [gs_message_log + (MESSAGE_CHARS * 2)]
+    call render_draw_text_line
+
+    mov rcx, qword ptr [rsp + 160]
+    mov edx, HUD_X + 12
+    mov r8d, 280
+    lea r9, [gs_message_log + (MESSAGE_CHARS * 3)]
     call render_draw_text_line
 
     mov rcx, qword ptr [rsp + 160]
@@ -627,7 +756,99 @@ render_present PROC FRAME
     mov r8d, 620
     lea r9, str_controls3
     call render_draw_text_line
+    jmp render_present_done
 
+render_present_menu:
+    cmp dword ptr [rt_screen], SCREEN_HELP
+    jne render_present_title
+
+    mov rcx, qword ptr [rsp + 160]
+    mov edx, 160
+    mov r8d, 120
+    lea r9, str_help0
+    call render_draw_text_line
+
+    mov rcx, qword ptr [rsp + 160]
+    mov edx, 160
+    mov r8d, 170
+    lea r9, str_help1
+    call render_draw_text_line
+
+    mov rcx, qword ptr [rsp + 160]
+    mov edx, 160
+    mov r8d, 205
+    lea r9, str_help2
+    call render_draw_text_line
+
+    mov rcx, qword ptr [rsp + 160]
+    mov edx, 160
+    mov r8d, 240
+    lea r9, str_help3
+    call render_draw_text_line
+
+    mov rcx, qword ptr [rsp + 160]
+    mov edx, 160
+    mov r8d, 275
+    lea r9, str_help4
+    call render_draw_text_line
+
+    mov rcx, qword ptr [rsp + 160]
+    mov edx, 160
+    mov r8d, 310
+    lea r9, str_help5
+    call render_draw_text_line
+
+    mov rcx, qword ptr [rsp + 160]
+    mov edx, 160
+    mov r8d, 345
+    lea r9, str_help6
+    call render_draw_text_line
+
+    mov rcx, qword ptr [rsp + 160]
+    mov edx, 160
+    mov r8d, 400
+    lea r9, str_help7
+    call render_draw_text_line
+    jmp render_present_done
+
+render_present_title:
+    mov rcx, qword ptr [rsp + 160]
+    mov edx, 160
+    mov r8d, 120
+    lea r9, str_title0
+    call render_draw_text_line
+
+    mov rcx, qword ptr [rsp + 160]
+    mov edx, 160
+    mov r8d, 170
+    lea r9, str_title1
+    call render_draw_text_line
+
+    mov rcx, qword ptr [rsp + 160]
+    mov edx, 160
+    mov r8d, 230
+    lea r9, str_title2
+    call render_draw_text_line
+
+    mov rcx, qword ptr [rsp + 160]
+    mov edx, 160
+    mov r8d, 260
+    lea r9, str_title3
+    call render_draw_text_line
+
+    mov rcx, qword ptr [rsp + 160]
+    mov edx, 160
+    mov r8d, 290
+    lea r9, str_title4
+    call render_draw_text_line
+
+    mov rcx, qword ptr [rsp + 160]
+    mov edx, 160
+    mov r8d, 350
+    lea r9, str_title5
+    call render_draw_text_line
+
+render_present_done:
     mov rcx, qword ptr [rt_window]
     mov rdx, qword ptr [rsp + 160]
     call ReleaseDC
@@ -642,8 +863,14 @@ render_frame PROC FRAME
     .endprolog
 
     call render_clear
+    cmp dword ptr [rt_screen], SCREEN_GAME
+    jne render_frame_menu
     call render_draw_world
     call render_build_hud
+    jmp render_frame_present
+render_frame_menu:
+    call render_draw_menu_background
+render_frame_present:
     call render_present
     add rsp, 40
     ret

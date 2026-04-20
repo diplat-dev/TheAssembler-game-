@@ -21,18 +21,24 @@ LOS_RADIUS          equ 8
 STATE_VERSION       equ 1
 SAVE_MAGIC          equ 0414C4752h
 
+SCREEN_TITLE        equ 0
+SCREEN_GAME         equ 1
+SCREEN_HELP         equ 2
+
 TILE_WALL           equ 0
 TILE_FLOOR          equ 1
 
 ENTITY_NONE         equ 0
 ENTITY_PLAYER       equ 1
 ENTITY_SLIME        equ 2
+ENTITY_BRUTE        equ 3
 
 AI_IDLE             equ 0
 AI_CHASE            equ 1
 
 ITEM_NONE           equ 0
 ITEM_POTION         equ 1
+ITEM_TONIC          equ 2
 
 STATUS_NONE         equ 0
 STATUS_REGEN        equ 1
@@ -52,6 +58,7 @@ PLAYER_ENTITY_INDEX equ 0
 
 VK_BACK             equ 08h
 VK_RETURN           equ 0Dh
+VK_ESCAPE           equ 1Bh
 VK_SPACE            equ 20h
 VK_LEFT             equ 25h
 VK_UP               equ 26h

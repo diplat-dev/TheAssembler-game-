@@ -1,14 +1,16 @@
 include game.inc
 
+EXTERN gs_seed:DWORD
 EXTERN rt_quit_requested:DWORD
 EXTERN rt_last_ms:QWORD
 EXTERN rt_accumulator_ms:QWORD
+EXTERN rt_screen:DWORD
+EXTERN rt_return_screen:DWORD
 EXTERN platform_init:PROC
 EXTERN platform_pump_messages:PROC
 EXTERN platform_get_ticks:PROC
 EXTERN platform_sleep_brief:PROC
 EXTERN render_frame:PROC
-EXTERN sim_new_run:PROC
 EXTERN sim_handle_input:PROC
 EXTERN sim_tick:PROC
 EXTERN ExitProcess:PROC
@@ -27,7 +29,10 @@ mainCRTStartup PROC FRAME
     mov qword ptr [rt_last_ms], rax
     xor ecx, eax
     xor ecx, 0A5A55A5h
-    call sim_new_run
+    or ecx, 1
+    mov dword ptr [gs_seed], ecx
+    mov dword ptr [rt_screen], SCREEN_TITLE
+    mov dword ptr [rt_return_screen], SCREEN_TITLE
 
 main_loop:
     call platform_pump_messages
