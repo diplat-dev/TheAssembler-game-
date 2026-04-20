@@ -1,6 +1,6 @@
 # The Assembler
 
-`The Assembler` is a Windows x64 assembly roguelike prototype built with `llvm-ml64`, `lld-link`, and the Win32/GDI API. It uses a deterministic fixed-step simulation, procedural dungeon generation, fog of war, a pause-and-queue command system, and quick save/load support.
+`The Assembler` is a Windows x64 assembly roguelike prototype built with `llvm-ml64`, `lld-link`, and the Win32/GDI API. It uses a deterministic fixed-step simulation, procedural dungeon generation, fog of war, a pause-and-queue command system, quick save/load support, and a simple title/help flow for onboarding.
 
 ## Requirements
 
@@ -36,6 +36,8 @@ Generated outputs:
 .\build\roguelike.exe
 ```
 
+The game now opens on a title screen. Start a fresh run with `Enter` or `Space`, open help with `H`, load the quicksave with `F9`, or quit with `Esc`/`Q`.
+
 ## Test
 
 ```powershell
@@ -44,17 +46,25 @@ Generated outputs:
 
 ## Controls
 
-- `Space`: pause or resume
-- `WASD` or arrow keys: queue movement
-- `.`: queue wait
-- `F`: queue a ranged attack at the nearest visible enemy
-- `G`: queue pickup
-- `I`: queue use first inventory item
-- `X`: queue drop first inventory item
+- `Space`: pause or resume the simulation
+- `WASD` or arrow keys: queue movement while paused
+- `.`: queue wait while paused
+- `F`: queue a ranged attack at the nearest visible enemy while paused
+- `G`: queue pickup while paused
+- `I`: queue use first inventory item while paused
+- `X`: queue drop first inventory item while paused
 - `Backspace`: remove the most recent queued command
 - `F5`: quicksave while paused
 - `F9`: quickload
-- `R`: start a new run
+- `R`: reroll a run
+- `H`: open or close the help screen
+- `Esc`: return to the title screen from a run
+
+## Current Prototype Notes
+
+- Slimes and heavier brutes both spawn in generated dungeons.
+- Potions restore health immediately.
+- Tonics apply a short regeneration effect.
 
 ## Project Layout
 

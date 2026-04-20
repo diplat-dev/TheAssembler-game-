@@ -1,13 +1,20 @@
 include game.inc
 
 EXTERN gs_seed:DWORD
+EXTERN gs_paused:DWORD
+EXTERN gs_game_over:DWORD
 EXTERN gs_queue_count:DWORD
 EXTERN gs_queue_head:DWORD
 EXTERN gs_queue_tail:DWORD
+EXTERN gs_command_queue:BYTE
 EXTERN gs_room_count:DWORD
 EXTERN gs_entity_hp:DWORD
 EXTERN gs_entity_x:BYTE
 EXTERN gs_entity_y:BYTE
+EXTERN gs_entity_status_type:BYTE
+EXTERN gs_entity_status_ticks:DWORD
+EXTERN gs_inventory_kind:BYTE
+EXTERN gs_inventory_count:BYTE
 EXTERN gs_map_tiles:BYTE
 EXTERN util_strlen:PROC
 EXTERN util_memset:PROC
@@ -155,15 +162,56 @@ tests_mainCRTStartup PROC FRAME
 
     mov ecx, 777
     call sim_new_run
-    mov dword ptr [gs_entity_hp + PLAYER_ENTITY_INDEX * 4], 4
+    mov dword ptr [gs_paused], 1
+    mov dword ptr [gs_game_over], 0
+    mov dword ptr [gs_queue_count], 3
+    mov dword ptr [gs_queue_head], 0
+    mov dword ptr [gs_queue_tail], 3
+    mov byte ptr [gs_command_queue], CMD_MOVE_RIGHT
+    mov byte ptr [gs_command_queue + 1], CMD_WAIT
+    mov byte ptr [gs_command_queue + 2], CMD_USE
+    mov byte ptr [gs_inventory_kind], ITEM_TONIC
+    mov byte ptr [gs_inventory_count], 2
+    mov byte ptr [gs_inventory_kind + 1], ITEM_POTION
+    mov byte ptr [gs_inventory_count + 1], 1
+    mov byte ptr [gs_entity_status_type + PLAYER_ENTITY_INDEX], STATUS_REGEN
+    mov dword ptr [gs_entity_status_ticks + PLAYER_ENTITY_INDEX * 4], 12
+    mov dword ptr [gs_entity_hp + PLAYER_ENTITY_INDEX * 4], 5
     call save_write_quick
     test eax, eax
     jz tests_save_failed
     mov dword ptr [gs_entity_hp + PLAYER_ENTITY_INDEX * 4], 1
+    mov dword ptr [gs_queue_count], 0
+    mov byte ptr [gs_inventory_kind], ITEM_NONE
+    mov byte ptr [gs_inventory_count], 0
+    mov byte ptr [gs_entity_status_type + PLAYER_ENTITY_INDEX], STATUS_NONE
+    mov dword ptr [gs_entity_status_ticks + PLAYER_ENTITY_INDEX * 4], 0
     call save_read_quick
     test eax, eax
     jz tests_save_failed
-    cmp dword ptr [gs_entity_hp + PLAYER_ENTITY_INDEX * 4], 4
+    cmp dword ptr [gs_entity_hp + PLAYER_ENTITY_INDEX * 4], 5
+    jne tests_save_failed
+    cmp dword ptr [gs_paused], 1
+    jne tests_save_failed
+    cmp dword ptr [gs_queue_count], 3
+    jne tests_save_failed
+    cmp byte ptr [gs_command_queue], CMD_MOVE_RIGHT
+    jne tests_save_failed
+    cmp byte ptr [gs_command_queue + 1], CMD_WAIT
+    jne tests_save_failed
+    cmp byte ptr [gs_command_queue + 2], CMD_USE
+    jne tests_save_failed
+    cmp byte ptr [gs_inventory_kind], ITEM_TONIC
+    jne tests_save_failed
+    cmp byte ptr [gs_inventory_count], 2
+    jne tests_save_failed
+    cmp byte ptr [gs_inventory_kind + 1], ITEM_POTION
+    jne tests_save_failed
+    cmp byte ptr [gs_inventory_count + 1], 1
+    jne tests_save_failed
+    cmp byte ptr [gs_entity_status_type + PLAYER_ENTITY_INDEX], STATUS_REGEN
+    jne tests_save_failed
+    cmp dword ptr [gs_entity_status_ticks + PLAYER_ENTITY_INDEX * 4], 12
     jne tests_save_failed
 
     lea rcx, test_pass_msg

@@ -82,10 +82,13 @@ PUBLIC str_msg_new_run
 PUBLIC str_msg_queue_full
 PUBLIC str_msg_queue_removed
 PUBLIC str_msg_picked_up
+PUBLIC str_msg_picked_up_tonic
 PUBLIC str_msg_inventory_full
 PUBLIC str_msg_used_potion
+PUBLIC str_msg_used_tonic
 PUBLIC str_msg_no_item
 PUBLIC str_msg_dropped_item
+PUBLIC str_msg_dropped_tonic
 PUBLIC str_msg_enemy_hit
 PUBLIC str_msg_player_hit
 PUBLIC str_msg_player_dead
@@ -117,6 +120,7 @@ PUBLIC str_inventory_empty
 PUBLIC str_status_none
 PUBLIC str_status_regen
 PUBLIC str_item_potion
+PUBLIC str_item_tonic
 PUBLIC str_title0
 PUBLIC str_title1
 PUBLIC str_title2
@@ -187,10 +191,13 @@ str_msg_new_run       db "New run started. Queue commands, then unpause.", 0
 str_msg_queue_full    db "Command queue is full.", 0
 str_msg_queue_removed db "Removed the last queued command.", 0
 str_msg_picked_up     db "Picked up a potion.", 0
+str_msg_picked_up_tonic db "Picked up a tonic.", 0
 str_msg_inventory_full db "Inventory is full.", 0
 str_msg_used_potion   db "Used a potion.", 0
+str_msg_used_tonic    db "Used a tonic. Regen is active.", 0
 str_msg_no_item       db "Nothing usable here.", 0
 str_msg_dropped_item  db "Dropped a potion.", 0
+str_msg_dropped_tonic db "Dropped a tonic.", 0
 str_msg_enemy_hit     db "You hit an enemy.", 0
 str_msg_player_hit    db "An enemy hits you.", 0
 str_msg_player_dead   db "You died. Press R or Enter to reroll.", 0
@@ -213,7 +220,7 @@ str_label_tick        db "Tick: ", 0
 str_label_hp          db "HP: ", 0
 str_label_status      db "Status: ", 0
 str_label_enemies     db "Enemies: ", 0
-str_controls0         db "WASD/arrows queue movement", 0
+str_controls0         db "WASD/arrows queue while paused", 0
 str_controls1         db "Space runs/pauses   Back undoes", 0
 str_controls2         db ". wait   G grab   I use   X drop", 0
 str_controls3         db "F fire   R reroll   H help   F5/F9", 0
@@ -222,6 +229,7 @@ str_inventory_empty   db "(empty)", 0
 str_status_none       db "None", 0
 str_status_regen      db "Regen ", 0
 str_item_potion       db "Potion", 0
+str_item_tonic        db "Tonic", 0
 str_title0            db "THE ASSEMBLER", 0
 str_title1            db "A Win64 assembly roguelike prototype.", 0
 str_title2            db "Enter or Space starts a new run.", 0
@@ -235,7 +243,7 @@ str_help3             db ". waits. G picks up. I uses an item. X drops an item."
 str_help4             db "F attacks the nearest visible enemy in range.", 0
 str_help5             db "F5 saves while paused. F9 loads the quicksave.", 0
 str_help6             db "R rerolls the floor. Esc returns to title from the run.", 0
-str_help7             db "Enter, Space, or H returns from this help screen.", 0
+str_help7             db "Enter, Space, Esc, or H returns from this help screen.", 0
 
 .data?
 

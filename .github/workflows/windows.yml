@@ -1,0 +1,29 @@
+name: Windows CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install LLVM tools
+        shell: pwsh
+        run: choco install llvm -y
+
+      - name: Add LLVM to PATH
+        shell: pwsh
+        run: Add-Content -Path $env:GITHUB_PATH -Value 'C:\Program Files\LLVM\bin'
+
+      - name: Build game and tests
+        shell: pwsh
+        run: .\build.ps1 all
+
+      - name: Run deterministic tests
+        shell: pwsh
+        run: .\build\roguelike_tests.exe

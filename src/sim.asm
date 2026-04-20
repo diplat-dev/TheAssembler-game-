@@ -45,10 +45,13 @@ EXTERN str_msg_new_run:BYTE
 EXTERN str_msg_queue_full:BYTE
 EXTERN str_msg_queue_removed:BYTE
 EXTERN str_msg_picked_up:BYTE
+EXTERN str_msg_picked_up_tonic:BYTE
 EXTERN str_msg_inventory_full:BYTE
 EXTERN str_msg_used_potion:BYTE
+EXTERN str_msg_used_tonic:BYTE
 EXTERN str_msg_no_item:BYTE
 EXTERN str_msg_dropped_item:BYTE
+EXTERN str_msg_dropped_tonic:BYTE
 EXTERN str_msg_enemy_hit:BYTE
 EXTERN str_msg_player_hit:BYTE
 EXTERN str_msg_player_dead:BYTE
@@ -320,16 +323,25 @@ sim_pickup_have_item:
 sim_pickup_slot_loop:
     cmp r11d, MAX_INV
     jge sim_pickup_full
-    cmp byte ptr [gs_inventory_kind + r11], ITEM_POTION
+    movzx eax, byte ptr [gs_item_kind + r10]
+    cmp byte ptr [gs_inventory_kind + r11], al
     je sim_pickup_add_here
     cmp byte ptr [gs_inventory_kind + r11], ITEM_NONE
     je sim_pickup_add_here
     inc r11d
     jmp sim_pickup_slot_loop
 sim_pickup_add_here:
-    mov byte ptr [gs_inventory_kind + r11], ITEM_POTION
+    movzx eax, byte ptr [gs_item_kind + r10]
+    mov byte ptr [gs_inventory_kind + r11], al
     inc byte ptr [gs_inventory_count + r11]
     mov byte ptr [gs_item_active + r10], 0
+    cmp byte ptr [gs_item_kind + r10], ITEM_TONIC
+    jne sim_pickup_potion_msg
+    lea rcx, str_msg_picked_up_tonic
+    call sim_add_message
+    add rsp, 40
+    ret
+sim_pickup_potion_msg:
     lea rcx, str_msg_picked_up
     call sim_add_message
     add rsp, 40
@@ -350,29 +362,44 @@ sim_use_item PROC FRAME
 sim_use_item_loop:
     cmp r10d, MAX_INV
     jge sim_use_item_none
-    cmp byte ptr [gs_inventory_kind + r10], ITEM_POTION
-    jne sim_use_item_next
     cmp byte ptr [gs_inventory_count + r10], 0
     je sim_use_item_next
+    cmp byte ptr [gs_inventory_kind + r10], ITEM_NONE
+    jne sim_use_item_found
+sim_use_item_next:
+    inc r10d
+    jmp sim_use_item_loop
+
+sim_use_item_found:
+    movzx eax, byte ptr [gs_inventory_kind + r10]
     dec byte ptr [gs_inventory_count + r10]
     cmp byte ptr [gs_inventory_count + r10], 0
-    jne sim_use_heal
+    jne sim_use_item_apply
     mov byte ptr [gs_inventory_kind + r10], ITEM_NONE
-sim_use_heal:
-    add dword ptr [gs_entity_hp + PLAYER_ENTITY_INDEX * 4], 2
+
+sim_use_item_apply:
+    cmp eax, ITEM_TONIC
+    jne sim_use_item_potion
+    mov byte ptr [gs_entity_status_type + PLAYER_ENTITY_INDEX], STATUS_REGEN
+    mov dword ptr [gs_entity_status_ticks + PLAYER_ENTITY_INDEX * 4], TONIC_REGEN_TICKS
+    lea rcx, str_msg_used_tonic
+    call sim_add_message
+    add rsp, 40
+    ret
+
+sim_use_item_potion:
+    add dword ptr [gs_entity_hp + PLAYER_ENTITY_INDEX * 4], POTION_HEAL
     mov eax, dword ptr [gs_entity_hp + PLAYER_ENTITY_INDEX * 4]
     cmp eax, dword ptr [gs_entity_max_hp + PLAYER_ENTITY_INDEX * 4]
-    jle sim_use_msg
+    jle sim_use_potion_msg
     mov eax, dword ptr [gs_entity_max_hp + PLAYER_ENTITY_INDEX * 4]
     mov dword ptr [gs_entity_hp + PLAYER_ENTITY_INDEX * 4], eax
-sim_use_msg:
+sim_use_potion_msg:
     lea rcx, str_msg_used_potion
     call sim_add_message
     add rsp, 40
     ret
-sim_use_item_next:
-    inc r10d
-    jmp sim_use_item_loop
+
 sim_use_item_none:
     lea rcx, str_msg_no_item
     call sim_add_message
@@ -389,9 +416,9 @@ sim_drop_item PROC FRAME
 sim_drop_find_inv:
     cmp r10d, MAX_INV
     jge sim_drop_none
-    cmp byte ptr [gs_inventory_kind + r10], ITEM_POTION
-    jne sim_drop_next_inv
     cmp byte ptr [gs_inventory_count + r10], 0
+    je sim_drop_next_inv
+    cmp byte ptr [gs_inventory_kind + r10], ITEM_NONE
     jne sim_drop_have_inv
 sim_drop_next_inv:
     inc r10d
@@ -409,7 +436,8 @@ sim_drop_item_slot:
 
 sim_drop_place:
     mov byte ptr [gs_item_active + r11], 1
-    mov byte ptr [gs_item_kind + r11], ITEM_POTION
+    movzx eax, byte ptr [gs_inventory_kind + r10]
+    mov byte ptr [gs_item_kind + r11], al
     movzx eax, byte ptr [gs_entity_x + PLAYER_ENTITY_INDEX]
     mov byte ptr [gs_item_x + r11], al
     movzx eax, byte ptr [gs_entity_y + PLAYER_ENTITY_INDEX]
@@ -420,6 +448,13 @@ sim_drop_place:
     jne sim_drop_msg
     mov byte ptr [gs_inventory_kind + r10], ITEM_NONE
 sim_drop_msg:
+    cmp byte ptr [gs_item_kind + r11], ITEM_TONIC
+    jne sim_drop_potion_msg
+    lea rcx, str_msg_dropped_tonic
+    call sim_add_message
+    add rsp, 40
+    ret
+sim_drop_potion_msg:
     lea rcx, str_msg_dropped_item
     call sim_add_message
     add rsp, 40
@@ -725,6 +760,11 @@ sim_enemy_x_dir_ready_b:
     call sim_try_move_actor
 
 sim_enemy_set_cd:
+    cmp byte ptr [gs_entity_kind + r9], ENTITY_BRUTE
+    jne sim_enemy_set_slime_cd
+    mov dword ptr [gs_entity_cooldown + r9 * 4], BRUTE_ACTION_TICKS
+    jmp sim_enemy_next
+sim_enemy_set_slime_cd:
     mov dword ptr [gs_entity_cooldown + r9 * 4], ENEMY_ACTION_TICKS
 
 sim_enemy_next:
@@ -765,16 +805,32 @@ sim_spawn_try:
 
     mov ecx, dword ptr [rsp + 32]
     mov byte ptr [gs_entity_active + rcx], 1
-    mov byte ptr [gs_entity_kind + rcx], ENTITY_SLIME
     mov byte ptr [gs_entity_ai + rcx], AI_CHASE
     mov eax, dword ptr [rsp + 52]
     mov byte ptr [gs_entity_x + rcx], al
     mov eax, dword ptr [rsp + 56]
     mov byte ptr [gs_entity_y + rcx], al
+    mov eax, dword ptr [rsp + 36]
+    and eax, 3
+    cmp eax, 0
+    je sim_spawn_brute
+    mov byte ptr [gs_entity_kind + rcx], ENTITY_SLIME
     mov eax, dword ptr [rsp + 40]
     mov dword ptr [gs_entity_hp + rcx * 4], eax
     mov dword ptr [gs_entity_max_hp + rcx * 4], eax
     mov eax, dword ptr [rsp + 44]
+    mov dword ptr [gs_entity_cooldown + rcx * 4], eax
+    add rsp, 72
+    ret
+
+sim_spawn_brute:
+    mov byte ptr [gs_entity_kind + rcx], ENTITY_BRUTE
+    mov eax, dword ptr [rsp + 40]
+    add eax, 2
+    mov dword ptr [gs_entity_hp + rcx * 4], eax
+    mov dword ptr [gs_entity_max_hp + rcx * 4], eax
+    mov eax, dword ptr [rsp + 44]
+    add eax, 2
     mov dword ptr [gs_entity_cooldown + rcx * 4], eax
     add rsp, 72
     ret
@@ -804,10 +860,23 @@ sim_spawn_item_in_room PROC FRAME
     call sim_find_entity_at
     cmp eax, -1
     jne sim_spawn_item_done
+    mov ecx, dword ptr [rsp + 40]
+    mov edx, dword ptr [rsp + 44]
+    call sim_find_item_at
+    cmp eax, -1
+    jne sim_spawn_item_done
 
     mov ecx, dword ptr [rsp + 32]
     mov byte ptr [gs_item_active + rcx], 1
+    mov eax, dword ptr [rsp + 32]
+    and eax, 1
+    cmp eax, 0
+    jne sim_spawn_item_potion
+    mov byte ptr [gs_item_kind + rcx], ITEM_TONIC
+    jmp sim_spawn_item_kind_done
+sim_spawn_item_potion:
     mov byte ptr [gs_item_kind + rcx], ITEM_POTION
+sim_spawn_item_kind_done:
     mov byte ptr [gs_item_stack + rcx], 1
     mov eax, dword ptr [rsp + 40]
     mov byte ptr [gs_item_x + rcx], al
@@ -847,8 +916,8 @@ sim_new_run PROC FRAME
     mov byte ptr [gs_entity_x + PLAYER_ENTITY_INDEX], al
     movzx eax, byte ptr [gs_room_cy]
     mov byte ptr [gs_entity_y + PLAYER_ENTITY_INDEX], al
-    mov dword ptr [gs_entity_hp + PLAYER_ENTITY_INDEX * 4], 6
-    mov dword ptr [gs_entity_max_hp + PLAYER_ENTITY_INDEX * 4], 6
+    mov dword ptr [gs_entity_hp + PLAYER_ENTITY_INDEX * 4], 8
+    mov dword ptr [gs_entity_max_hp + PLAYER_ENTITY_INDEX * 4], 8
     mov dword ptr [gs_entity_cooldown + PLAYER_ENTITY_INDEX * 4], 0
     mov dword ptr [gs_entity_count], 1
 
@@ -868,7 +937,7 @@ sim_spawn_enemy_loop:
     call sim_spawn_from_room
     inc dword ptr [gs_entity_count]
     inc r10d
-    cmp r10d, 6
+    cmp r10d, 5
     jge sim_spawn_items_begin
     inc r11d
     jmp sim_spawn_enemy_loop
@@ -880,7 +949,7 @@ sim_spawn_items_begin:
 sim_spawn_item_loop:
     cmp r10d, dword ptr [gs_room_count]
     jge sim_finish_new_run
-    cmp r11d, 4
+    cmp r11d, 5
     jge sim_finish_new_run
     mov ecx, dword ptr [gs_item_count]
     mov edx, r10d
@@ -916,6 +985,40 @@ sim_decrement_done:
     ret
 sim_decrement_cooldowns ENDP
 
+sim_process_statuses PROC
+    xor r10d, r10d
+sim_status_loop:
+    cmp r10d, MAX_ENTITIES
+    jge sim_status_done
+    cmp byte ptr [gs_entity_active + r10], 0
+    je sim_status_next
+    cmp dword ptr [gs_entity_hp + r10 * 4], 0
+    jle sim_status_next
+    cmp byte ptr [gs_entity_status_type + r10], STATUS_REGEN
+    jne sim_status_next
+    cmp dword ptr [gs_entity_status_ticks + r10 * 4], 0
+    jle sim_status_clear
+    dec dword ptr [gs_entity_status_ticks + r10 * 4]
+    mov eax, dword ptr [gs_entity_status_ticks + r10 * 4]
+    test eax, 3
+    jne sim_status_check_clear
+    mov eax, dword ptr [gs_entity_hp + r10 * 4]
+    cmp eax, dword ptr [gs_entity_max_hp + r10 * 4]
+    jge sim_status_check_clear
+    inc dword ptr [gs_entity_hp + r10 * 4]
+sim_status_check_clear:
+    cmp dword ptr [gs_entity_status_ticks + r10 * 4], 0
+    jg sim_status_next
+sim_status_clear:
+    mov byte ptr [gs_entity_status_type + r10], STATUS_NONE
+    mov dword ptr [gs_entity_status_ticks + r10 * 4], 0
+sim_status_next:
+    inc r10d
+    jmp sim_status_loop
+sim_status_done:
+    ret
+sim_process_statuses ENDP
+
 sim_tick PROC FRAME
     sub rsp, 40
     .allocstack 40
@@ -930,6 +1033,7 @@ sim_tick_live:
     jne sim_tick_done
     inc dword ptr [gs_tick]
     call sim_decrement_cooldowns
+    call sim_process_statuses
     call sim_process_player
     call sim_process_enemies
     call vis_update
