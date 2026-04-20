@@ -113,10 +113,12 @@ util_append_char PROC
 util_append_char ENDP
 
 util_append_uint PROC FRAME
-    sub rsp, 56
-    .allocstack 56
+    sub rsp, 72
+    .allocstack 72
     .endprolog
 
+    mov qword ptr [rsp + 48], r10
+    mov qword ptr [rsp + 56], r11
     mov r8, rcx
     lea r9, [rsp + 32]
     xor r10d, r10d
@@ -127,7 +129,9 @@ util_append_uint PROC FRAME
     inc r8
     mov byte ptr [r8], 0
     mov rax, r8
-    add rsp, 56
+    mov r11, qword ptr [rsp + 56]
+    mov r10, qword ptr [rsp + 48]
+    add rsp, 72
     ret
 
 util_append_uint_digits:
@@ -151,7 +155,9 @@ util_append_uint_copyback:
 
     mov byte ptr [r8], 0
     mov rax, r8
-    add rsp, 56
+    mov r11, qword ptr [rsp + 56]
+    mov r10, qword ptr [rsp + 48]
+    add rsp, 72
     ret
 util_append_uint ENDP
 

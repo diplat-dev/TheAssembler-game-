@@ -112,6 +112,8 @@ COLOR_TEXT           equ 00E8E8D8h
 .code
 
 render_fill_rect_color PROC
+    push r10
+    push r11
     test r8d, r8d
     jle render_fill_done
     test r9d, r9d
@@ -133,6 +135,8 @@ render_fill_col:
     dec r10d
     jne render_fill_row
 render_fill_done:
+    pop r11
+    pop r10
     ret
 render_fill_rect_color ENDP
 
