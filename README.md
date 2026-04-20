@@ -5,9 +5,9 @@
 ## Requirements
 
 - Windows x64
-- LLVM tools on `PATH`:
-  - `llvm-ml64`
-  - `lld-link`
+- One of:
+  - LLVM tools available on `PATH` or under `C:\Program Files\LLVM\bin`
+  - Visual Studio with the x64 C++ build tools installed
 - Windows 10/11 SDK libraries installed under `C:\Program Files (x86)\Windows Kits\10\Lib`
 
 No `.env` file or runtime configuration is required.

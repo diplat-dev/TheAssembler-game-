@@ -12,14 +12,6 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Install LLVM tools
-        shell: pwsh
-        run: choco install llvm -y
-
-      - name: Add LLVM to PATH
-        shell: pwsh
-        run: Add-Content -Path $env:GITHUB_PATH -Value 'C:\Program Files\LLVM\bin'
-
       - name: Build game and tests
         shell: pwsh
         run: .\build.ps1 all

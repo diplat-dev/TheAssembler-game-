@@ -16,6 +16,7 @@ EXTERN gs_entity_count:DWORD
 EXTERN gs_item_count:DWORD
 EXTERN gs_command_queue:BYTE
 EXTERN gs_map_tiles:BYTE
+EXTERN gs_map_visible:BYTE
 EXTERN gs_entity_active:BYTE
 EXTERN gs_entity_kind:BYTE
 EXTERN gs_entity_ai:BYTE

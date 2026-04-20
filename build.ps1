@@ -37,17 +37,65 @@ function Resolve-ToolPath {
     throw "Unable to locate any of: $($Names -join ', ')"
 }
 
+function Get-LatestMsvcBinDir {
+    $programFilesX86 = [Environment]::GetEnvironmentVariable('ProgramFiles(x86)')
+    if (-not $programFilesX86) {
+        $programFilesX86 = 'C:\Program Files (x86)'
+    }
+    $vswhere = Get-Command vswhere -ErrorAction SilentlyContinue
+    if (-not $vswhere) {
+        $vswherePath = Join-Path $programFilesX86 'Microsoft Visual Studio\Installer\vswhere.exe'
+        if (Test-Path $vswherePath) {
+            $vswhere = [pscustomobject]@{ Source = $vswherePath }
+        }
+    }
+
+    if (-not $vswhere) {
+        return $null
+    }
+
+    $installPath = & $vswhere.Source -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath 2>$null |
+        Select-Object -First 1
+
+    if (-not $installPath) {
+        return $null
+    }
+
+    $msvcRoot = Join-Path $installPath 'VC\Tools\MSVC'
+    if (-not (Test-Path $msvcRoot)) {
+        return $null
+    }
+
+    $toolDir = Get-ChildItem -Path $msvcRoot -Directory |
+        Sort-Object Name -Descending |
+        Select-Object -First 1
+
+    if (-not $toolDir) {
+        return $null
+    }
+
+    $binDir = Join-Path $toolDir.FullName 'bin\Hostx64\x64'
+    if (Test-Path $binDir) {
+        return $binDir
+    }
+
+    return $null
+}
+
 $llvmProgramFiles = if ($env:ProgramFiles) { $env:ProgramFiles } else { 'C:\Program Files' }
 $llvmBinDir = Join-Path $llvmProgramFiles 'LLVM\bin'
+$msvcBinDir = Get-LatestMsvcBinDir
 $assembler = Resolve-ToolPath `
     -Names @('llvm-ml64', 'llvm-ml64.exe') `
     -FallbackPaths @(
-        (Join-Path $llvmBinDir 'llvm-ml64.exe')
+        (Join-Path $llvmBinDir 'llvm-ml64.exe'),
+        $(if ($msvcBinDir) { Join-Path $msvcBinDir 'ml64.exe' })
     )
 $linker = Resolve-ToolPath `
     -Names @('lld-link', 'lld-link.exe') `
     -FallbackPaths @(
-        (Join-Path $llvmBinDir 'lld-link.exe')
+        (Join-Path $llvmBinDir 'lld-link.exe'),
+        $(if ($msvcBinDir) { Join-Path $msvcBinDir 'link.exe' })
     )
 
 $sdkRoot = 'C:\Program Files (x86)\Windows Kits\10\Lib'
