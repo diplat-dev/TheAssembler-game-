@@ -46,7 +46,7 @@ The game now opens on a title screen. Start a fresh run with `Enter` or `Space`,
 
 ## Controls
 
-- `Space`: pause or resume the simulation
+- `Space`: run the queued commands, or pause a run in progress
 - `WASD` or arrow keys: queue movement while paused
 - `.`: queue wait while paused
 - `F`: queue a ranged attack at the nearest visible enemy while paused
@@ -59,6 +59,8 @@ The game now opens on a title screen. Start a fresh run with `Enter` or `Space`,
 - `R`: reroll a run
 - `H`: open or close the help screen
 - `Esc`: return to the title screen from a run
+
+Queued commands now execute as a batch. The game automatically pauses again when the queue is empty and the player is ready for the next decision. If the player dies, the game switches to a death screen where `Enter`, `Space`, or `R` starts a new run, `F9` loads the quicksave, and `Esc` returns to the title screen.
 
 ## Current Prototype Notes
 

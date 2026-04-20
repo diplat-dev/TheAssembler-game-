@@ -101,6 +101,7 @@ PUBLIC str_msg_ranged_miss
 PUBLIC str_msg_ranged_hit
 PUBLIC str_msg_paused
 PUBLIC str_msg_resumed
+PUBLIC str_msg_auto_paused
 PUBLIC str_label_paused
 PUBLIC str_label_running
 PUBLIC str_label_dead
@@ -135,6 +136,11 @@ PUBLIC str_help4
 PUBLIC str_help5
 PUBLIC str_help6
 PUBLIC str_help7
+PUBLIC str_dead0
+PUBLIC str_dead1
+PUBLIC str_dead2
+PUBLIC str_dead3
+PUBLIC str_dead4
 
 .data
 
@@ -210,6 +216,7 @@ str_msg_ranged_miss   db "No visible ranged target.", 0
 str_msg_ranged_hit    db "Ranged attack lands.", 0
 str_msg_paused        db "Simulation paused.", 0
 str_msg_resumed       db "Simulation resumed.", 0
+str_msg_auto_paused   db "Command queue finished. Paused.", 0
 str_label_paused      db "PAUSED", 0
 str_label_running     db "RUNNING", 0
 str_label_dead        db "DEAD", 0
@@ -244,6 +251,11 @@ str_help4             db "F attacks the nearest visible enemy in range.", 0
 str_help5             db "F5 saves while paused. F9 loads the quicksave.", 0
 str_help6             db "R rerolls the floor. Esc returns to title from the run.", 0
 str_help7             db "Enter, Space, Esc, or H returns from this help screen.", 0
+str_dead0             db "YOU DIED", 0
+str_dead1             db "The run is over.", 0
+str_dead2             db "Press Enter, Space, or R to restart.", 0
+str_dead3             db "F9 loads the quicksave. Esc returns to title.", 0
+str_dead4             db "[ Restart Run ]", 0
 
 .data?
 

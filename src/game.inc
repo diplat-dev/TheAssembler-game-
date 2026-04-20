@@ -27,6 +27,7 @@ SAVE_MAGIC          equ 0414C4752h
 SCREEN_TITLE        equ 0
 SCREEN_GAME         equ 1
 SCREEN_HELP         equ 2
+SCREEN_DEAD         equ 3
 
 TILE_WALL           equ 0
 TILE_FLOOR          equ 1

@@ -8,7 +8,9 @@ EXTERN gs_queue_head:DWORD
 EXTERN gs_queue_tail:DWORD
 EXTERN gs_command_queue:BYTE
 EXTERN gs_room_count:DWORD
+EXTERN gs_entity_active:BYTE
 EXTERN gs_entity_hp:DWORD
+EXTERN gs_entity_cooldown:DWORD
 EXTERN gs_entity_x:BYTE
 EXTERN gs_entity_y:BYTE
 EXTERN gs_entity_status_type:BYTE
@@ -16,6 +18,8 @@ EXTERN gs_entity_status_ticks:DWORD
 EXTERN gs_inventory_kind:BYTE
 EXTERN gs_inventory_count:BYTE
 EXTERN gs_map_tiles:BYTE
+EXTERN rt_key_pressed:BYTE
+EXTERN rt_screen:DWORD
 EXTERN util_strlen:PROC
 EXTERN util_memset:PROC
 EXTERN map_rng_seed:PROC
@@ -24,6 +28,8 @@ EXTERN map_tile_index:PROC
 EXTERN sim_new_run:PROC
 EXTERN sim_queue_command:PROC
 EXTERN sim_pop_command:PROC
+EXTERN sim_tick:PROC
+EXTERN sim_handle_input:PROC
 EXTERN save_write_quick:PROC
 EXTERN save_read_quick:PROC
 EXTERN vis_has_los:PROC
@@ -39,6 +45,8 @@ test_rng_fail db "RNG repeatability failed.", 13, 10, 0
 test_queue_fail db "Queue ordering failed.", 13, 10, 0
 test_run_fail db "New run setup failed.", 13, 10, 0
 test_los_fail db "LOS blocking failed.", 13, 10, 0
+test_pause_fail db "Auto-pause flow failed.", 13, 10, 0
+test_dead_fail db "Death restart flow failed.", 13, 10, 0
 test_save_fail db "Save/load round-trip failed.", 13, 10, 0
 
 .data?
@@ -160,6 +168,51 @@ tests_mainCRTStartup PROC FRAME
     cmp eax, 1
     jne tests_los_failed
 
+    mov ecx, 5150
+    call sim_new_run
+    lea rcx, [gs_entity_active + 1]
+    xor edx, edx
+    mov r8d, MAX_ENTITIES - 1
+    call util_memset
+    mov dword ptr [gs_queue_count], 1
+    mov dword ptr [gs_queue_head], 0
+    mov dword ptr [gs_queue_tail], 1
+    mov byte ptr [gs_command_queue], CMD_WAIT
+    mov dword ptr [gs_paused], 0
+    mov dword ptr [gs_entity_cooldown + PLAYER_ENTITY_INDEX * 4], 0
+    call sim_tick
+    cmp dword ptr [gs_paused], 0
+    jne tests_pause_failed
+    call sim_tick
+    call sim_tick
+    call sim_tick
+    call sim_tick
+    call sim_tick
+    cmp dword ptr [gs_queue_count], 0
+    jne tests_pause_failed
+    cmp dword ptr [gs_entity_cooldown + PLAYER_ENTITY_INDEX * 4], 0
+    jne tests_pause_failed
+    cmp dword ptr [gs_paused], 1
+    jne tests_pause_failed
+
+    mov ecx, 6161
+    call sim_new_run
+    mov dword ptr [gs_game_over], 1
+    mov dword ptr [gs_paused], 1
+    mov dword ptr [rt_screen], SCREEN_DEAD
+    lea rcx, rt_key_pressed
+    xor edx, edx
+    mov r8d, 256
+    call util_memset
+    mov byte ptr [rt_key_pressed + 'R'], 1
+    call sim_handle_input
+    cmp dword ptr [rt_screen], SCREEN_GAME
+    jne tests_dead_failed
+    cmp dword ptr [gs_game_over], 0
+    jne tests_dead_failed
+    cmp dword ptr [gs_paused], 1
+    jne tests_dead_failed
+
     mov ecx, 777
     call sim_new_run
     mov dword ptr [gs_paused], 1
@@ -230,6 +283,12 @@ tests_run_failed:
     call test_fail
 tests_los_failed:
     lea rcx, test_los_fail
+    call test_fail
+tests_pause_failed:
+    lea rcx, test_pause_fail
+    call test_fail
+tests_dead_failed:
+    lea rcx, test_dead_fail
     call test_fail
 tests_save_failed:
     lea rcx, test_save_fail

@@ -61,6 +61,7 @@ EXTERN str_msg_ranged_miss:BYTE
 EXTERN str_msg_ranged_hit:BYTE
 EXTERN str_msg_paused:BYTE
 EXTERN str_msg_resumed:BYTE
+EXTERN str_msg_auto_paused:BYTE
 EXTERN util_memset:PROC
 EXTERN util_memcpy:PROC
 EXTERN util_copy_cstr:PROC
@@ -229,6 +230,8 @@ sim_damage_entity PROC FRAME
     jne sim_damage_done
     mov dword ptr [gs_game_over], 1
     mov dword ptr [gs_paused], 1
+    mov dword ptr [rt_screen], SCREEN_DEAD
+    mov dword ptr [rt_return_screen], SCREEN_DEAD
     lea rcx, str_msg_player_dead
     call sim_add_message
 sim_damage_done:
@@ -1038,6 +1041,15 @@ sim_tick_live:
     call sim_process_player
     call sim_process_enemies
     call vis_update
+    cmp dword ptr [gs_game_over], 0
+    jne sim_tick_done
+    cmp dword ptr [gs_queue_count], 0
+    jne sim_tick_done
+    cmp dword ptr [gs_entity_cooldown + PLAYER_ENTITY_INDEX * 4], 0
+    jne sim_tick_done
+    mov dword ptr [gs_paused], 1
+    lea rcx, str_msg_auto_paused
+    call sim_add_message
 sim_tick_done:
     add rsp, 40
     ret
@@ -1048,6 +1060,8 @@ sim_handle_input PROC FRAME
     .allocstack 56
     .endprolog
 
+    cmp dword ptr [rt_screen], SCREEN_DEAD
+    je sim_input_dead
     cmp dword ptr [rt_screen], SCREEN_HELP
     je sim_input_help
     cmp dword ptr [rt_screen], SCREEN_GAME
@@ -1101,6 +1115,38 @@ sim_input_leave_help:
     mov dword ptr [rt_screen], eax
     jmp sim_input_done
 
+sim_input_dead:
+    cmp byte ptr [rt_key_pressed + VK_F9], 0
+    je sim_input_dead_no_load
+    call save_read_quick
+    test eax, eax
+    jz sim_input_dead_no_load
+    mov dword ptr [rt_screen], SCREEN_GAME
+    mov dword ptr [rt_return_screen], SCREEN_GAME
+    jmp sim_input_done
+sim_input_dead_no_load:
+
+    cmp byte ptr [rt_key_pressed + VK_ESCAPE], 0
+    je sim_input_dead_no_title
+    mov dword ptr [rt_screen], SCREEN_TITLE
+    mov dword ptr [rt_return_screen], SCREEN_TITLE
+    jmp sim_input_done
+sim_input_dead_no_title:
+
+    cmp byte ptr [rt_key_pressed + VK_RETURN], 0
+    jne sim_input_dead_restart
+    cmp byte ptr [rt_key_pressed + VK_SPACE], 0
+    jne sim_input_dead_restart
+    cmp byte ptr [rt_key_pressed + 'R'], 0
+    je sim_input_done
+sim_input_dead_restart:
+    mov ecx, dword ptr [gs_seed]
+    inc ecx
+    call sim_new_run
+    lea rcx, str_msg_restart
+    call sim_add_message
+    jmp sim_input_done
+
 sim_input_game:
     cmp byte ptr [rt_key_pressed + VK_ESCAPE], 0
     je sim_input_no_title
@@ -1122,16 +1168,16 @@ sim_input_no_help:
     je sim_input_no_space
     cmp dword ptr [gs_game_over], 0
     jne sim_input_no_space
-    xor eax, eax
     cmp dword ptr [gs_paused], 0
-    sete al
-    mov dword ptr [gs_paused], eax
-    cmp eax, 0
-    je sim_input_resumed
+    jne sim_input_try_resume
+    mov dword ptr [gs_paused], 1
     lea rcx, str_msg_paused
     call sim_add_message
     jmp sim_input_no_space
-sim_input_resumed:
+sim_input_try_resume:
+    cmp dword ptr [gs_queue_count], 0
+    jle sim_input_no_space
+    mov dword ptr [gs_paused], 0
     lea rcx, str_msg_resumed
     call sim_add_message
 sim_input_no_space:

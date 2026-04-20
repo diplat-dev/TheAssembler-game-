@@ -74,6 +74,11 @@ EXTERN str_help4:BYTE
 EXTERN str_help5:BYTE
 EXTERN str_help6:BYTE
 EXTERN str_help7:BYTE
+EXTERN str_dead0:BYTE
+EXTERN str_dead1:BYTE
+EXTERN str_dead2:BYTE
+EXTERN str_dead3:BYTE
+EXTERN str_dead4:BYTE
 EXTERN util_memset:PROC
 EXTERN util_strlen:PROC
 EXTERN util_copy_cstr:PROC
@@ -107,6 +112,7 @@ COLOR_ITEM           equ 00D6B24Bh
 COLOR_ITEM_TONIC     equ 00D98AC1h
 COLOR_MENU_PANEL     equ 00131C29h
 COLOR_MENU_ACCENT    equ 0045708Fh
+COLOR_DANGER_ACCENT  equ 00845858h
 COLOR_TEXT           equ 00E8E8D8h
 
 .code
@@ -767,7 +773,7 @@ render_present PROC FRAME
 
 render_present_menu:
     cmp dword ptr [rt_screen], SCREEN_HELP
-    jne render_present_title
+    jne render_present_not_help
 
     mov rcx, qword ptr [rsp + 160]
     mov edx, 160
@@ -815,6 +821,48 @@ render_present_menu:
     mov edx, 160
     mov r8d, 400
     lea r9, str_help7
+    call render_draw_text_line
+    jmp render_present_done
+
+render_present_not_help:
+    cmp dword ptr [rt_screen], SCREEN_DEAD
+    jne render_present_title
+
+    mov ecx, 220
+    mov edx, 300
+    mov r8d, 320
+    mov r9d, 32
+    mov eax, COLOR_DANGER_ACCENT
+    call render_fill_rect_color
+
+    mov rcx, qword ptr [rsp + 160]
+    mov edx, 250
+    mov r8d, 150
+    lea r9, str_dead0
+    call render_draw_text_line
+
+    mov rcx, qword ptr [rsp + 160]
+    mov edx, 250
+    mov r8d, 220
+    lea r9, str_dead1
+    call render_draw_text_line
+
+    mov rcx, qword ptr [rsp + 160]
+    mov edx, 250
+    mov r8d, 307
+    lea r9, str_dead4
+    call render_draw_text_line
+
+    mov rcx, qword ptr [rsp + 160]
+    mov edx, 250
+    mov r8d, 380
+    lea r9, str_dead2
+    call render_draw_text_line
+
+    mov rcx, qword ptr [rsp + 160]
+    mov edx, 250
+    mov r8d, 415
+    lea r9, str_dead3
     call render_draw_text_line
     jmp render_present_done
 
