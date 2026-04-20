@@ -112,19 +112,21 @@ COLOR_TEXT           equ 00E8E8D8h
 .code
 
 render_fill_rect_color PROC
+    push rbx
     push r10
     push r11
     test r8d, r8d
     jle render_fill_done
     test r9d, r9d
     jle render_fill_done
+    mov rbx, OFFSET rt_backbuffer
     mov r10d, r9d
     mov r11d, edx
 render_fill_row:
     mov edx, r11d
     imul edx, WINDOW_WIDTH
     add edx, ecx
-    lea rdx, [rt_backbuffer + rdx * 4]
+    lea rdx, [rbx + rdx * 4]
     mov r9d, r8d
 render_fill_col:
     mov dword ptr [rdx], eax
@@ -137,6 +139,7 @@ render_fill_col:
 render_fill_done:
     pop r11
     pop r10
+    pop rbx
     ret
 render_fill_rect_color ENDP
 
